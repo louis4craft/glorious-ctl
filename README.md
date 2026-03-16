@@ -66,7 +66,7 @@ Then **log out and back in** — the app will work without sudo from then on, pe
 
 ```bash
 # Clone
-git clone https://github.com/yourname/gloctl
+git clone https://github.com/louis4craft/glorious-ctl
 cd gloctl
 
 # Install dependencies
