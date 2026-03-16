@@ -78,51 +78,6 @@ sudo python3 mouse_gui.py
 
 Both `mouse_gui.py` and `mouse.py` must be in the same folder.
 
----
-
-## Building the AppImage yourself
-
-Requires the three files in the same folder: `mouse_gui.py`, `mouse.py`, `setup.py`
-
-```bash
-chmod +x build.sh
-./build.sh
-```
-
-The script will:
-1. Install Python dependencies (`PySide6`, `hid`, `pyinstaller`)
-2. Download `appimagetool` if not present
-3. Bundle the app with PyInstaller
-4. Build `MouseControl.AppImage`
-5. Set up udev rules and libinput quirks
-6. Add your user to the `plugdev` group
-
----
-
-## Adding Your Mouse
-
-If you have a different Glorious mouse, find your VID and PID:
-
-```bash
-lsusb | grep -i glorious
-# Example output: Bus 001 Device 003: ID 258a:2022 ...
-#                                        ^^^^ ^^^^
-#                                        VID  PID
-```
-
-Then add it to `SUPPORTED_DEVICES` at the top of `mouse_gui.py`:
-
-```python
-SUPPORTED_DEVICES = [
-    {"name": "Glorious Model O Wireless", "vid": 0x258a, "pid": 0x2022},
-    {"name": "Your Mouse Name",           "vid": 0x258a, "pid": 0xXXXX},  # ← add here
-]
-```
-
-Open a PR or issue and I'll merge it.
-
----
-
 ## How it Works
 
 The app communicates directly with the mouse over HID (Human Interface Device) using raw feature reports — the same protocol the official Windows software uses. No kernel module or driver needed.
