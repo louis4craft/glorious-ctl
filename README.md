@@ -1,4 +1,4 @@
-# gloctl
+# glorious-ctl
 
 A Linux control panel for Glorious wireless mice. Set RGB effects, debounce time, and check battery — no official software needed.
 
@@ -35,8 +35,8 @@ A Linux control panel for Glorious wireless mice. Set RGB effects, debounce time
 Grab the latest AppImage from the [Releases](../../releases) page.
 
 ```bash
-chmod +x gloctl-x86_64.AppImage
-./gloctl-x86_64.AppImage
+chmod +x glorious-ctl-x86_64.AppImage
+./glorious-ctl-x86_64.AppImage
 ```
 
 ---
@@ -67,7 +67,7 @@ Then **log out and back in** — the app will work without sudo from then on, pe
 ```bash
 # Clone
 git clone https://github.com/louis4craft/glorious-ctl
-cd gloctl
+cd glorious-ctl
 
 # Install dependencies
 pip install PySide6 hid
