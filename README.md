@@ -25,6 +25,12 @@ A Linux control panel for Glorious wireless mice. Set RGB effects, debounce time
 | Mouse | VID | PID |
 |-------|-----|-----|
 | Glorious Model O Wireless | `258a` | `2022` |
+| Glorious Model O 2 Wireless | `258a` | `2033` |
+| Glorious Model D Wireless | `258a` | `2011` |
+| Glorious Model D 2 PRO 4K/8KHz Edition | `258a` | `2036` |
+| Glorious Model D 2 PRO (dongle) | `258a` | `2034` |
+| Glorious Model D 2 PRO (wired/direct) | `258a` | `201a` |
+| Glorious Model I | `22d4` | `1503` |
 
 > Don't see your mouse? Open an issue with the output of `lsusb` and I'll add it.
 
