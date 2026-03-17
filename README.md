@@ -52,11 +52,7 @@ chmod +x glorious-ctl-x86_64.AppImage
 On first launch, if the app can't access the mouse, it shows a dialog with a command to copy and run once in a terminal:
 
 ```bash
-printf 'SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2022", MODE="0666", GROUP="plugdev"\n' \
-  | sudo tee /etc/udev/rules.d/99-glorious-mouse.rules \
-  && sudo udevadm control --reload-rules \
-  && sudo udevadm trigger \
-  && sudo usermod -aG plugdev $USER
+curl -fsSL https://raw.githubusercontent.com/louis4craft/glorious-ctl/refs/heads/main/setup_permissions.sh | sudo bash
 ```
 
 Then **log out and back in** — the app will work without sudo from then on, permanently.
