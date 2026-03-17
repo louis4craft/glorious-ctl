@@ -72,10 +72,10 @@ git clone https://github.com/louis4craft/glorious-ctl
 cd glorious-ctl
 
 # Install dependencies
-pip install PySide6 hid
+pip install -r requirements.txt
 
 # Run (needs sudo first time, or after udev rule is set: without sudo)
-sudo python3 mouse_gui.py
+python3 mouse_gui.py
 ```
 
 Both `mouse_gui.py` and `mouse.py` must be in the same folder.
