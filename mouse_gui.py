@@ -8,6 +8,7 @@ import sys
 import os
 import importlib.util
 import datetime
+import json
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -20,6 +21,29 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject
 from PySide6.QtGui import (
     QColor, QPainter, QBrush, QLinearGradient, QPalette, QTextCursor, QPen,
 )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Load supported devices from JSON configuration
+# ══════════════════════════════════════════════════════════════════════════════
+def _load_supported_devices():
+    """Load supported devices from devices.json and convert hex strings to integers."""
+    config_path = Path(__file__).parent / "devices.json"
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+            devices = []
+            for dev in config["supported_devices"]:
+                devices.append({
+                    "name": dev["name"],
+                    "vid": int(dev["vid"], 16),
+                    "pid": int(dev["pid"], 16),
+                })
+            return devices
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        # Fallback to single device if JSON not found
+        return [{"name": "Glorious Model O Wireless", "vid": 0x258a, "pid": 0x2022}]
+
+SUPPORTED_DEVICES = _load_supported_devices()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Backend import
@@ -1035,41 +1059,84 @@ class MainWindow(QMainWindow):
         log_info("Main window opened")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Permission check  (HID access without sudo via udev rule)
+# Setup checks  (run on every startup)
+# 1. HID permissions via udev rule
+# 2. libinput quirks for debounce fix
 # ══════════════════════════════════════════════════════════════════════════════
-UDEV_CMD = (
-    "echo 'SUBSYSTEM==\"hidraw\", ATTRS{idVendor}==\"258a\","
-    " ATTRS{idProduct}==\"2022\", MODE=\"0666\", GROUP=\"plugdev\"'"
-    " | sudo tee /etc/udev/rules.d/99-glorious-mouse.rules"
-    " && sudo udevadm control --reload-rules"
-    " && sudo udevadm trigger"
-    " && sudo usermod -aG plugdev $USER"
-)
+LIBINPUT_FILE = "/etc/libinput/local-overrides.quirks"
 
-def _hid_accessible() -> bool:
-    """Return True if the HID device can be opened without root."""
+def _libinput_ok() -> bool:
     try:
-        import hid as _hid
-        # Just enumerate — doesn't open the device, no root needed for this
-        devs = _hid.enumerate(0x258a, 0x2022)
-        if not devs:
-            return True   # mouse not connected — don't block startup
-        # Try actually opening it
-        d = _hid.Device(0x258a, 0x2022)
-        d.close()
-        return True
+        return os.path.exists(LIBINPUT_FILE) and "ModelBouncingKeys" in open(LIBINPUT_FILE).read()
     except Exception:
         return False
 
-def _show_permissions_dialog(app):
+def _build_udev_rules() -> str:
+    lines = []
+    for dev in SUPPORTED_DEVICES:
+        vid = f"{dev['vid']:04x}"
+        pid = f"{dev['pid']:04x}"
+        lines.append(
+            f'SUBSYSTEM=="hidraw", ATTRS{{idVendor}}=="{vid}",'
+            f' ATTRS{{idProduct}}=="{pid}", MODE="0666", GROUP="plugdev"'
+        )
+    return "\n".join(lines)
+
+def _find_setup_script() -> str:
+    """Return path to setup_permissions.sh whether frozen or not."""
+    if getattr(sys, "frozen", False):
+        return str(Path(sys._MEIPASS) / "setup_permissions.sh")
+    return str(Path(__file__).parent / "setup_permissions.sh")
+
+def _build_setup_cmd() -> str:
+    script = _find_setup_script()
+    return f"sudo bash \"{script}\""
+
+
+def _hid_accessible() -> bool:
+    try:
+        import hid as _hid
+        for dev in SUPPORTED_DEVICES:
+            devs = _hid.enumerate(dev["vid"], dev["pid"])
+            if not devs:
+                continue
+            try:
+                d = _hid.Device(dev["vid"], dev["pid"])
+                d.close()
+                return True
+            except Exception:
+                return False
+        return True
+    except Exception:
+        return True
+
+def _check_setup() -> tuple[bool, bool]:
+    return _hid_accessible(), _libinput_ok()
+
+def _run_setup_script():
+    """Run setup_permissions.sh with pkexec (graphical sudo) or fallback message."""
+    script = _find_setup_script()
+    import subprocess
+    try:
+        # Try pkexec first (graphical password prompt, no terminal needed)
+        result = subprocess.run(
+            ["pkexec", "bash", script],
+            capture_output=True, text=True
+        )
+        return result.returncode == 0, result.stdout + result.stderr
+    except FileNotFoundError:
+        # pkexec not available — fall back to showing the terminal command
+        return None, f"sudo bash \"{script}\""
+
+def _show_permissions_dialog(app, hid_ok: bool, libinput_ok: bool):
     dlg = QDialog()
     dlg.setWindowTitle("Setup Required")
-    dlg.setFixedSize(560, 310)
+    dlg.setFixedSize(540, 340)
     dlg.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
 
     layout = QVBoxLayout(dlg)
     layout.setContentsMargins(30, 30, 30, 22)
-    layout.setSpacing(14)
+    layout.setSpacing(12)
 
     # Title row
     title_row = QHBoxLayout()
@@ -1077,9 +1144,7 @@ def _show_permissions_dialog(app):
     icon.setStyleSheet(f"color: {C_ERROR}; font-size: 22px;")
     title_row.addWidget(icon)
     title = QLabel("One-Time Setup Required")
-    title.setStyleSheet(
-        f"color: {C_TEXT}; font-size: 15px; font-weight: bold; margin-left: 6px;"
-    )
+    title.setStyleSheet(f"color: {C_TEXT}; font-size: 15px; font-weight: bold; margin-left: 6px;")
     title_row.addWidget(title)
     title_row.addStretch()
     layout.addLayout(title_row)
@@ -1089,49 +1154,102 @@ def _show_permissions_dialog(app):
     sep.setStyleSheet(f"color: {C_BORDER};")
     layout.addWidget(sep)
 
-    desc = QLabel(
-        "The app needs permission to access the mouse via HID.\n"
-        "Run this command once in a terminal, then re-login and restart the app:"
-    )
+    # Status rows
+    def _status_row(label: str, ok: bool) -> QLabel:
+        ok_icon  = f'<span style="color:{C_SUCCESS}">&#10003;</span>'
+        err_icon = f'<span style="color:{C_ERROR}">&#10007;</span>'
+        lbl = QLabel(f"{ok_icon if ok else err_icon} &nbsp;{label}")
+        lbl.setStyleSheet(f"font-size: 12px; color: {C_TEXT};")
+        return lbl
+
+    layout.addWidget(_status_row("HID device permissions (udev rule)", hid_ok))
+    layout.addWidget(_status_row("libinput debounce quirk", libinput_ok))
+
+    desc = QLabel("\nClick the button below to run the setup script automatically:")
     desc.setStyleSheet(f"color: {C_MUTED}; font-size: 12px;")
-    desc.setWordWrap(True)
     layout.addWidget(desc)
 
-    # Copyable command field
-    cmd_field = QLineEdit(UDEV_CMD)
+    # Result label (shown after running)
+    result_lbl = QLabel("")
+    result_lbl.setWordWrap(True)
+    result_lbl.setStyleSheet(f"font-size: 11px; color: {C_MUTED};")
+    layout.addWidget(result_lbl)
+
+    # Fallback: copyable command (hidden by default)
+    fallback_box = QWidget()
+    fallback_layout = QVBoxLayout(fallback_box)
+    fallback_layout.setContentsMargins(0, 0, 0, 0)
+    fallback_layout.setSpacing(6)
+    fallback_lbl = QLabel("pkexec not available. Run this command in a terminal — it downloads and runs the setup script from GitHub:")
+    fallback_lbl.setStyleSheet(f"color: {C_MUTED}; font-size: 11px;")
+    fallback_layout.addWidget(fallback_lbl)
+    cmd_field = QLineEdit()
     cmd_field.setReadOnly(True)
     cmd_field.setStyleSheet(
         f"background: #0D0E12; color: {C_ACCENT}; border: 1px solid {C_BORDER};"
         f"border-radius: 6px; padding: 8px 12px; font-size: 11px;"
-        f"font-family: \'JetBrains Mono\', \'Fira Code\', \'Consolas\', monospace;"
-        f"selection-background-color: {C_ACCENT}; selection-color: #000;"
+        f"font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;"
     )
-    cmd_field.home(False)
-    layout.addWidget(cmd_field)
+    fallback_layout.addWidget(cmd_field)
+    copy_btn = QPushButton("  Copy Command  ⎘")
+    copy_btn.setFixedWidth(180)
+    copy_btn.clicked.connect(lambda: (
+        app.clipboard().setText(cmd_field.text()),
+        copy_btn.setText("  Copied!  ✓"),
+        QTimer.singleShot(2000, lambda: copy_btn.setText("  Copy Command  ⎘"))
+    ))
+    fallback_layout.addWidget(copy_btn)
+    fallback_box.setVisible(False)
+    layout.addWidget(fallback_box)
 
-    note = QLabel("After running the command: log out, log back in, then relaunch the app.")
-    note.setStyleSheet(f"color: {C_MUTED}; font-size: 11px;")
-    note.setWordWrap(True)
-    layout.addWidget(note)
+    relogin = QLabel("⚠  After setup completes, log out and back in — then relaunch the app.")
+    relogin.setStyleSheet(
+        f"color: {C_WARNING}; font-size: 12px; font-weight: bold;"
+        f"background: rgba(245,158,11,0.08); border-radius: 6px; padding: 8px 10px;"
+    )
+    relogin.setWordWrap(True)
+    layout.addWidget(relogin)
 
     layout.addStretch()
 
     btn_row = QHBoxLayout()
     btn_row.addStretch()
 
-    copy_btn = QPushButton("  Copy Command  ⎘")
-    copy_btn.setFixedWidth(180)
-    copy_btn.clicked.connect(lambda: (
-        app.clipboard().setText(UDEV_CMD),
-        copy_btn.setText("  Copied!  ✓"),
-        QTimer.singleShot(2000, lambda: copy_btn.setText("  Copy Command  ⎘"))
-    ))
-    btn_row.addWidget(copy_btn)
+    run_btn = QPushButton("  Run Setup  ▶")
+    run_btn.setObjectName("accent")
+    run_btn.setFixedWidth(160)
 
     exit_btn = QPushButton("Exit")
-    exit_btn.setObjectName("accent")
     exit_btn.setFixedWidth(100)
     exit_btn.clicked.connect(dlg.reject)
+
+    def _on_run():
+        run_btn.setEnabled(False)
+        run_btn.setText("  Running…")
+        ok, msg = _run_setup_script()
+        if ok is True:
+            result_lbl.setStyleSheet(f"font-size: 11px; color: {C_SUCCESS};")
+            result_lbl.setText("✓ Setup completed successfully.")
+            run_btn.setText("  Done  ✓")
+        elif ok is False:
+            result_lbl.setStyleSheet(f"font-size: 11px; color: {C_ERROR};")
+            result_lbl.setText(f"✗ Setup failed: {msg}")
+            run_btn.setText("  Retry  ▶")
+            run_btn.setEnabled(True)
+        else:
+            # pkexec not found — show fallback with GitHub download command
+            github_cmd = (
+                "curl -fsSL https://raw.githubusercontent.com/louis4craft/glorious-ctl/refs/heads/main/setup_permissions.sh"
+                " | sudo bash"
+            )
+            cmd_field.setText(github_cmd)
+            fallback_box.setVisible(True)
+            run_btn.setText("  Run Setup  ▶")
+            run_btn.setEnabled(True)
+            dlg.setFixedSize(540, 420)
+
+    run_btn.clicked.connect(_on_run)
+    btn_row.addWidget(run_btn)
     btn_row.addWidget(exit_btn)
     layout.addLayout(btn_row)
 
@@ -1171,10 +1289,22 @@ def main():
     palette.setColor(QPalette.HighlightedText, QColor("#000"))
     app.setPalette(palette)
 
-    # ── Permission check ─────────────────────────────────────────────────────
-    if os.name == "posix" and not _hid_accessible():
-        result = _show_permissions_dialog(app)
-        sys.exit(0)
+    # ── Setup check (runs every startup) ─────────────────────────────────────
+    if os.name == "posix":
+        hid_ok, libinput_ok = _check_setup()
+        if not hid_ok:
+            log_warn("HID permissions missing — udev rule not set up")
+        else:
+            log_ok("HID permissions OK")
+        if not libinput_ok:
+            log_warn("libinput debounce quirk not installed")
+        else:
+            log_ok("libinput quirk OK")
+        if not hid_ok or not libinput_ok:
+            _show_permissions_dialog(app, hid_ok, libinput_ok)
+            if not hid_ok:
+                sys.exit(0)
+            # libinput missing is non-critical — continue
 
     win = MainWindow()
     win.show()

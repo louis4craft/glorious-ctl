@@ -1,0 +1,39 @@
+{
+  "supported_devices": [
+    {
+      "name": "Glorious Model O Wireless",
+      "vid": "0x258a",
+      "pid": "0x2022"
+    },
+    {
+      "name": "Glorious Model O 2 Wireless",
+      "vid": "0x258a",
+      "pid": "0x2033"
+    },
+    {
+      "name": "Glorious Model D Wireless",
+      "vid": "0x258a",
+      "pid": "0x2011"
+    },
+    {
+      "name": "Glorious Model D 2 PRO 4K/8KHz Edition",
+      "vid": "0x258a",
+      "pid": "0x2036"
+    },
+    {
+      "name": "Glorious Model D 2 PRO (dongle)",
+      "vid": "0x258a",
+      "pid": "0x2034"
+    },
+    {
+      "name": "Glorious Model D 2 PRO (wired/direct)",
+      "vid": "0x258a",
+      "pid": "0x201a"
+    },
+    {
+      "name": "Glorious Model I",
+      "vid": "0x22d4",
+      "pid": "0x1503"
+    }
+  ]
+}

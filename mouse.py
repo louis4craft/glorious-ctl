@@ -2,15 +2,31 @@ import subprocess
 import hid
 import sys
 import time
+import json
+from pathlib import Path
 
 
 PROFILE_DEFAULT = 1
 RATE_DEFAULT = 40
 
-vendor_id = 0x258a  
-product_id = 0x2022  
+# Load supported devices from devices.json
+def _load_devices():
+    config_path = Path(__file__).parent / "devices.json"
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+            return config["supported_devices"]
+    except (FileNotFoundError, json.JSONDecodeError):
+        # Fallback to default device if JSON not found
+        return [{"name": "Glorious Model O Wireless", "vid": "0x258a", "pid": "0x2022"}]
 
-suported_mice = ["glorious model o wireless"]
+_DEVICES = _load_devices()
+
+# Use first device as default, can be changed at runtime
+vendor_id = int(_DEVICES[0]["vid"], 16)
+product_id = int(_DEVICES[0]["pid"], 16)
+suported_mice = [device["name"].lower() for device in _DEVICES]
+
 output = subprocess.check_output(["lsusb"]).decode()
 
 
