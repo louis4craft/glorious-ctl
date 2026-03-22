@@ -34,6 +34,11 @@
       "name": "Glorious Model I",
       "vid": "0x22d4",
       "pid": "0x1503"
+    },
+    {
+      "name": "Glorious Model I 2 Wireless",
+      "vid": "0x093a",
+      "pid": "0x821a"
     }
   ]
 }

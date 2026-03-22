@@ -8,8 +8,9 @@ import sys
 import os
 import importlib.util
 import datetime
-import json
 from pathlib import Path
+import subprocess
+
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -23,25 +24,35 @@ from PySide6.QtGui import (
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Load supported devices from JSON configuration
+# Supported devices — loaded from devices.json
+# To add a new mouse: edit devices.json, no code change needed.
 # ══════════════════════════════════════════════════════════════════════════════
-def _load_supported_devices():
-    """Load supported devices from devices.json and convert hex strings to integers."""
-    config_path = Path(__file__).parent / "devices.json"
-    try:
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-            devices = []
-            for dev in config["supported_devices"]:
-                devices.append({
-                    "name": dev["name"],
-                    "vid": int(dev["vid"], 16),
-                    "pid": int(dev["pid"], 16),
-                })
-            return devices
-    except (FileNotFoundError, json.JSONDecodeError, KeyError):
-        # Fallback to single device if JSON not found
-        return [{"name": "Glorious Model O Wireless", "vid": 0x258a, "pid": 0x2022}]
+import json
+
+def _load_supported_devices() -> list:
+    """Load devices from devices.json. Works frozen (PyInstaller) and as plain .py."""
+    candidates = []
+    if getattr(sys, "frozen", False):
+        candidates.append(Path(sys._MEIPASS) / "devices.json")
+    candidates.append(Path(__file__).parent / "devices.json")
+    for path in candidates:
+        if path.exists():
+            try:
+                data = json.loads(path.read_text())
+                devs = data["supported_devices"]
+                # Normalise: convert hex strings to ints
+                return [
+                    {
+                        "name": d["name"],
+                        "vid":  int(d["vid"], 16) if isinstance(d["vid"], str) else d["vid"],
+                        "pid":  int(d["pid"], 16) if isinstance(d["pid"], str) else d["pid"],
+                    }
+                    for d in devs
+                ]
+            except Exception:
+                pass
+    # Fallback if devices.json is missing
+    return [{"name": "Glorious Model O Wireless", "vid": 0x258a, "pid": 0x2022}]
 
 SUPPORTED_DEVICES = _load_supported_devices()
 
@@ -1116,7 +1127,6 @@ def _check_setup() -> tuple[bool, bool]:
 def _run_setup_script():
     """Run setup_permissions.sh with pkexec (graphical sudo) or fallback message."""
     script = _find_setup_script()
-    import subprocess
     try:
         # Try pkexec first (graphical password prompt, no terminal needed)
         result = subprocess.run(

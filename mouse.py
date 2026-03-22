@@ -23,8 +23,20 @@ def _load_devices():
 _DEVICES = _load_devices()
 
 # Use first device as default, can be changed at runtime
-vendor_id = int(_DEVICES[0]["vid"], 16)
-product_id = int(_DEVICES[0]["pid"], 16)
+def _detect_connected_device():
+    """Find the first supported device actually connected via HID."""
+    for dev in _DEVICES:
+        vid = int(dev["vid"], 16) if isinstance(dev["vid"], str) else dev["vid"]
+        pid = int(dev["pid"], 16) if isinstance(dev["pid"], str) else dev["pid"]
+        if hid.enumerate(vid, pid):
+            return vid, pid
+    # Fallback to first device in list
+    vid = int(_DEVICES[0]["vid"], 16) if isinstance(_DEVICES[0]["vid"], str) else _DEVICES[0]["vid"]
+    pid = int(_DEVICES[0]["pid"], 16) if isinstance(_DEVICES[0]["pid"], str) else _DEVICES[0]["pid"]
+    return vid, pid
+
+vendor_id, product_id = _detect_connected_device()
+
 suported_mice = [device["name"].lower() for device in _DEVICES]
 
 output = subprocess.check_output(["lsusb"]).decode()

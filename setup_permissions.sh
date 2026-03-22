@@ -34,6 +34,8 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2034", MODE="06
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="201a", MODE="0666", GROUP="plugdev"
 # Glorious Model I (Laview Technology OEM)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="22d4", ATTRS{idProduct}=="1503", MODE="0666", GROUP="plugdev"
+# Glorious Model I 2 Wireless (Pixart Imaging OEM)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="093a", ATTRS{idProduct}=="821a", MODE="0666", GROUP="plugdev"
 EOF
 
 udevadm control --reload-rules
@@ -42,6 +44,14 @@ ok "udev rules written and reloaded"
 
 # ── 2. plugdev group ──────────────────────────────────────────────────────────
 CURRENT_USER="${SUDO_USER:-$USER}"
+
+# Create plugdev group if it doesn't exist (not present by default on Arch)
+if ! getent group plugdev > /dev/null 2>&1; then
+    log "plugdev group not found, creating it..."
+    groupadd plugdev
+    ok "plugdev group created"
+fi
+
 if groups "$CURRENT_USER" | grep -q "plugdev"; then
     ok "User '$CURRENT_USER' already in plugdev group"
 else
@@ -78,6 +88,10 @@ ModelBouncingKeys=1
 
 [Glorious Model I]
 MatchName=*Glorious Model I*
+ModelBouncingKeys=1
+
+[Glorious Model I 2 Wireless]
+MatchName=*Glorious Model I 2 Wireless*
 ModelBouncingKeys=1
 EOF
 
