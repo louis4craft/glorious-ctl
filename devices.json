@@ -39,6 +39,16 @@
       "name": "Glorious Model I 2 Wireless",
       "vid": "0x093a",
       "pid": "0x821a"
+    },
+    {
+      "name": "Glorious Model O V2 Wired",
+      "vid": "0x320f",
+      "pid": "0x823a"
+    },
+    {
+      "name": "Glorious Model D- Wireless",
+      "vid": "0x258a",
+      "pid": "0x2025"
     }
   ]
 }

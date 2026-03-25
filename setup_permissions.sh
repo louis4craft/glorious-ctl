@@ -36,6 +36,10 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="201a", MODE="06
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="22d4", ATTRS{idProduct}=="1503", MODE="0666", GROUP="plugdev"
 # Glorious Model I 2 Wireless (Pixart Imaging OEM)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="093a", ATTRS{idProduct}=="821a", MODE="0666", GROUP="plugdev"
+# Glorious Model O V2 Wired (VID 320f)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="320f", ATTRS{idProduct}=="823a", MODE="0666", GROUP="plugdev"
+# Glorious Model D- Wireless
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2025", MODE="0666", GROUP="plugdev"
 EOF
 
 udevadm control --reload-rules
@@ -92,6 +96,14 @@ ModelBouncingKeys=1
 
 [Glorious Model I 2 Wireless]
 MatchName=*Glorious Model I 2 Wireless*
+ModelBouncingKeys=1
+
+[Glorious Model O V2 Wired]
+MatchName=*Glorious Model O V2 Wired*
+ModelBouncingKeys=1
+
+[Glorious Model D- Wireless]
+MatchName=*Glorious Model D- Wireless*
 ModelBouncingKeys=1
 EOF
 
