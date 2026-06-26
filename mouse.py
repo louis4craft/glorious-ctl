@@ -22,29 +22,68 @@ def _load_devices():
 
 _DEVICES = _load_devices()
 
-# Use first device as default, can be changed at runtime
+def _as_int(value):
+    return int(value, 16) if isinstance(value, str) else value
+
+def _device_ids(device):
+    return _as_int(device["vid"]), _as_int(device["pid"])
+
+def _interface_score(entry):
+    usage_page = entry.get("usage_page") or 0
+    interface_number = entry.get("interface_number")
+    interface_number = -1 if interface_number is None else interface_number
+
+    if usage_page == 0xFF01:
+        usage_score = 0
+    elif usage_page == 0xFF00:
+        usage_score = 1
+    elif usage_page >= 0xFF00:
+        usage_score = 2
+    else:
+        usage_score = 10
+
+    return usage_score, -interface_number
+
+def _enumerate_supported_devices():
+    for dev in _DEVICES:
+        vid, pid = _device_ids(dev)
+        for entry in sorted(hid.enumerate(vid, pid), key=_interface_score):
+            yield dev, entry
+
 def _detect_connected_device():
     """Find the first supported device actually connected via HID."""
-    for dev in _DEVICES:
-        vid = int(dev["vid"], 16) if isinstance(dev["vid"], str) else dev["vid"]
-        pid = int(dev["pid"], 16) if isinstance(dev["pid"], str) else dev["pid"]
-        if hid.enumerate(vid, pid):
-            return vid, pid
-    # Fallback to first device in list
-    vid = int(_DEVICES[0]["vid"], 16) if isinstance(_DEVICES[0]["vid"], str) else _DEVICES[0]["vid"]
-    pid = int(_DEVICES[0]["pid"], 16) if isinstance(_DEVICES[0]["pid"], str) else _DEVICES[0]["pid"]
-    return vid, pid
+    for dev, entry in _enumerate_supported_devices():
+        vid, pid = _device_ids(dev)
+        return vid, pid, entry.get("path")
 
-vendor_id, product_id = _detect_connected_device()
+    # Fallback to first device in list
+    vid, pid = _device_ids(_DEVICES[0])
+    return vid, pid, None
+
+vendor_id, product_id, device_path = _detect_connected_device()
 
 suported_mice = [device["name"].lower() for device in _DEVICES]
 
-output = subprocess.check_output(["lsusb"]).decode()
+try:
+    output = subprocess.check_output(["lsusb"]).decode()
+except Exception:
+    output = ""
+
+def _open_device():
+    global vendor_id, product_id, device_path
+    vendor_id, product_id, device_path = _detect_connected_device()
+    if device_path:
+        return hid.Device(path=device_path)
+    return hid.Device(vendor_id, product_id)
 
 
 def check_for_supported_mice():
     for device in output.split("\n"):  
-        if any(mouse in device.lower() for mouse in suported_mice):
+        lower = device.lower()
+        if any(mouse in lower for mouse in suported_mice):
+            print("Found supported mouse!")
+            return device
+        if any(f"{_device_ids(dev)[0]:04x}:{_device_ids(dev)[1]:04x}" in lower for dev in _DEVICES):
             print("Found supported mouse!")
             return device
 
@@ -94,7 +133,7 @@ class Effect:
         pass
 
 def set_rgb(profile=None, effect=None):
-    device = hid.Device(vendor_id, product_id)
+    device = _open_device()
 
     bfr = [0] * 65
     profile_id = profile if profile is not None else PROFILE_DEFAULT
@@ -200,7 +239,7 @@ def set_debounce_time(ms, profile):
         bfr[7] = profile_id
         bfr[8] = ms
 
-        device = hid.Device(vendor_id, product_id)
+        device = _open_device()
         device.send_feature_report(bytes(bfr))
         device.close()
         return True
@@ -208,7 +247,7 @@ def set_debounce_time(ms, profile):
         return False
 
 def get_battery_status(wired):
-    device = hid.Device(vendor_id, product_id)
+    device = _open_device()
 
     bfr_w = [0] * 65
     bfr_w[3] = 0x02
@@ -249,6 +288,5 @@ def get_battery_status(wired):
         return "(waking up)"
     else:
         return f"[1:{bfr_r[1]:02X}, 6:{bfr_r[6]:02X}, 8:{bfr_r[8]:02X}] (unknown status)"
-
 
 

@@ -1,7 +1,19 @@
 import os
+import json
+from pathlib import Path
 
 FOLDER = "/etc/libinput"
 FILE = "/etc/libinput/local-overrides.quirks"
+DEVICE_FILE = Path(__file__).parent / "devices.json"
+
+
+def _load_device_names():
+    try:
+        with open(DEVICE_FILE, "r") as f:
+            data = json.load(f)
+        return [dev["name"] for dev in data["supported_devices"]]
+    except Exception:
+        return ["Glorious Model O Wireless"]
 
 
 def _setup_folder():
@@ -14,14 +26,12 @@ def _setup_folder():
 
 
 def _setup_file():
-    if os.path.exists(FILE):
-        return True
-
     try:
         with open(FILE, "w") as f:
-            f.write("[Glorious Model O Wireless]\n")
-            f.write("MatchName=*Glorious Model O Wireless*\n")
-            f.write("ModelBouncingKeys=1\n")
+            for name in _load_device_names():
+                f.write(f"[{name}]\n")
+                f.write(f"MatchName=*{name}*\n")
+                f.write("ModelBouncingKeys=1\n\n")
         return True
     except Exception as e:
         print(f"Error creating file: {e}")

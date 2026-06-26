@@ -26,6 +26,8 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2022", MODE="06
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2033", MODE="0666", GROUP="plugdev"
 # Glorious Model D Wireless
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2011", MODE="0666", GROUP="plugdev"
+# Glorious Model D Wireless (alternate PID)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2023", MODE="0666", GROUP="plugdev"
 # Glorious Model D 2 PRO 4K/8KHz Edition
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2036", MODE="0666", GROUP="plugdev"
 # Glorious Model D 2 PRO (dongle)
@@ -36,8 +38,16 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="201a", MODE="06
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="22d4", ATTRS{idProduct}=="1503", MODE="0666", GROUP="plugdev"
 # Glorious Model I 2 Wireless (Pixart Imaging OEM)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="093a", ATTRS{idProduct}=="821a", MODE="0666", GROUP="plugdev"
+# Glorious Model I 2 Wireless (alternate PID)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="093a", ATTRS{idProduct}=="821d", MODE="0666", GROUP="plugdev"
+# Glorious Model I 2 Wired
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="320f", ATTRS{idProduct}=="831a", MODE="0666", GROUP="plugdev"
 # Glorious Model O V2 Wired (VID 320f)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="320f", ATTRS{idProduct}=="823a", MODE="0666", GROUP="plugdev"
+# Glorious Model O3 Wireless Receiver
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3794", ATTRS{idProduct}=="a300", MODE="0666", GROUP="plugdev"
+# Glorious Model O3 Wireless
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3794", ATTRS{idProduct}=="a312", MODE="0666", GROUP="plugdev"
 # Glorious Model D- Wireless
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2025", MODE="0666", GROUP="plugdev"
 EOF
@@ -82,6 +92,10 @@ ModelBouncingKeys=1
 MatchName=*Glorious Model D Wireless*
 ModelBouncingKeys=1
 
+[Glorious Model D Wireless alternate PID]
+MatchName=*Glorious Model D Wireless*
+ModelBouncingKeys=1
+
 [Glorious Model D 2 PRO 4K/8KHz Edition]
 MatchName=*Glorious Model D 2 PRO 4K/8KHz Edition*
 ModelBouncingKeys=1
@@ -98,8 +112,16 @@ ModelBouncingKeys=1
 MatchName=*Glorious Model I 2 Wireless*
 ModelBouncingKeys=1
 
+[Glorious Model I 2 Wired]
+MatchName=*Glorious Model I 2 Wired*
+ModelBouncingKeys=1
+
 [Glorious Model O V2 Wired]
 MatchName=*Glorious Model O V2 Wired*
+ModelBouncingKeys=1
+
+[Glorious Model O3 Wireless]
+MatchName=*Glorious Model O3 Wireless*
 ModelBouncingKeys=1
 
 [Glorious Model D- Wireless]

@@ -1112,7 +1112,17 @@ def _hid_accessible() -> bool:
             if not devs:
                 continue
             try:
-                d = _hid.Device(dev["vid"], dev["pid"])
+                sorted_devs = sorted(
+                    devs,
+                    key=lambda e: (
+                        0 if e.get("usage_page") == 0xFF01 else
+                        1 if e.get("usage_page") == 0xFF00 else
+                        2 if (e.get("usage_page") or 0) >= 0xFF00 else
+                        10,
+                        -(e.get("interface_number") or -1),
+                    ),
+                )
+                d = _hid.Device(path=sorted_devs[0].get("path"))
                 d.close()
                 return True
             except Exception:

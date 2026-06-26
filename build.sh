@@ -38,17 +38,23 @@ SETUP="$SCRIPT_DIR/setup.py"
 
 # ── Step 1: Python & pip ──────────────────────────────────────────────────────
 log "Checking Python..."
-command -v python3 &>/dev/null || fail "python3 not found. Install it with: sudo apt install python3"
-PYTHON=$(command -v python3)
+if [[ -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
+    PYTHON="$VIRTUAL_ENV/bin/python"
+elif [[ -x "$SCRIPT_DIR/venv/bin/python" ]]; then
+    PYTHON="$SCRIPT_DIR/venv/bin/python"
+else
+    command -v python3 &>/dev/null || fail "python3 not found. Install it with: sudo apt install python3"
+    PYTHON=$(command -v python3)
+fi
 ok "Python: $($PYTHON --version)"
 
 log "Checking pip..."
-command -v pip3 &>/dev/null || fail "pip3 not found. Install it with: sudo apt install python3-pip"
-ok "pip found"
+"$PYTHON" -m pip --version > /dev/null 2>&1 || fail "pip not found for $PYTHON. Create a venv with: python3 -m venv venv"
+ok "pip found: $($PYTHON -m pip --version)"
 
 # ── Step 2: Install Python dependencies ──────────────────────────────────────
 log "Installing Python dependencies (PySide6, hid, pyinstaller)..."
-pip3 install --quiet PySide6 hid pyinstaller
+"$PYTHON" -m pip install --quiet PySide6 hid pyinstaller
 ok "Python packages installed"
 
 # ── Step 3: Download appimagetool ─────────────────────────────────────────────
@@ -68,7 +74,7 @@ fi
 log "Bundling app with PyInstaller..."
 cd "$SCRIPT_DIR"
 
-pyinstaller \
+"$PYTHON" -m PyInstaller \
     --onefile \
     --windowed \
     --name "mouse-control" \
@@ -83,7 +89,7 @@ pyinstaller \
     "$GUI" \
     > /dev/null 2>&1
 
-[[ -f "$SCRIPT_DIR/dist/mouse-control" ]] || fail "PyInstaller build failed. Run manually to see errors: pyinstaller --onefile --windowed mouse_gui.py"
+[[ -f "$SCRIPT_DIR/dist/mouse-control" ]] || fail "PyInstaller build failed. Run manually to see errors: $PYTHON -m PyInstaller --onefile --windowed mouse_gui.py"
 ok "PyInstaller build successful"
 
 # ── Step 5: AppDir structure ──────────────────────────────────────────────────
@@ -160,41 +166,12 @@ ARCH=x86_64 "$APPIMAGETOOL" "$APPDIR" "$OUTPUT" > /dev/null 2>&1
 chmod +x "$OUTPUT"
 ok "AppImage built: $OUTPUT"
 
-# ── Step 7: udev rule ─────────────────────────────────────────────────────────
-UDEV_RULE="/etc/udev/rules.d/99-glorious-mouse.rules"
-RULE_CONTENT='SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="2022", MODE="0666", GROUP="plugdev"'
-
-log "Setting up udev rule for HID access (requires sudo)..."
-
-if [[ -f "$UDEV_RULE" ]] && grep -q "258a" "$UDEV_RULE" 2>/dev/null; then
-    ok "udev rule already exists, skipping"
+# ── Step 7: udev rules, libinput quirks, plugdev group ───────────────────────
+log "Running permission setup (requires sudo)..."
+if sudo bash "$SCRIPT_DIR/setup_permissions.sh"; then
+    ok "Permissions configured"
 else
-    echo "$RULE_CONTENT" | sudo tee "$UDEV_RULE" > /dev/null
-    ok "udev rule written to $UDEV_RULE"
-fi
-
-log "Reloading udev rules..."
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-ok "udev rules reloaded"
-
-# ── Step 8: libinput quirks (setup.py) ───────────────────────────────────────
-log "Running libinput quirks setup (requires sudo)..."
-if sudo python3 "$SETUP"; then
-    ok "libinput quirks configured (/etc/libinput/local-overrides.quirks)"
-else
-    warn "setup.py failed — debounce fix via libinput not applied (non-critical)"
-fi
-
-# ── Step 9: plugdev group ─────────────────────────────────────────────────────
-CURRENT_USER="${SUDO_USER:-$USER}"
-if groups "$CURRENT_USER" | grep -q "plugdev"; then
-    ok "User '$CURRENT_USER' is already in plugdev group"
-else
-    log "Adding '$CURRENT_USER' to plugdev group..."
-    sudo usermod -aG plugdev "$CURRENT_USER"
-    ok "User added to plugdev"
-    warn "You need to log out and back in for the group change to take effect."
+    warn "setup_permissions.sh failed — run it manually before using the AppImage"
 fi
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
